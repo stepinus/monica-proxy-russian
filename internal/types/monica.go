@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 
 	lop "github.com/samber/lo/parallel"
 
@@ -41,8 +40,8 @@ type ChatGPTRequest struct {
 }
 
 type ChatMessage struct {
-	Role    string      `json:"role"`    // "system", "user", "assistant"
-	Content interface{} `json:"content"` // 可以是字符串或MessageContent数组
+	Role    string `json:"role"`    // "system", "user", "assistant"
+	Content any    `json:"content"` // 可以是字符串或MessageContent数组
 }
 
 // MessageContent 消息内容
@@ -130,8 +129,8 @@ type FileInfo struct {
 	FileChunks int64  `json:"file_chunks"`
 	ObjectURL  string `json:"object_url,omitempty"`
 	//Embedding    bool                   `json:"embedding"`
-	FileMetaInfo map[string]interface{} `json:"file_meta_info,omitempty"`
-	UseFullText  bool                   `json:"use_full_text"`
+	FileMetaInfo map[string]any `json:"file_meta_info,omitempty"`
+	UseFullText  bool           `json:"use_full_text"`
 }
 
 // FileUploadRequest 文件上传请求
@@ -192,30 +191,78 @@ type OpenAIModelList struct {
 	Data   []OpenAIModel `json:"data"`
 }
 
-// GetSupportedModels returns all supported models in OpenAI format
-func GetSupportedModels() OpenAIModelList {
-	models := []OpenAIModel{
-		{ID: "gpt-4o-mini", Object: "model", OwnedBy: "monica"},
-		{ID: "gpt-4o", Object: "model", OwnedBy: "monica"},
-		{ID: "claude-3-7-sonnet", Object: "model", OwnedBy: "monica"},
-		{ID: "claude-3-7-sonnet-thinking", Object: "model", OwnedBy: "monica"},
-		{ID: "claude-3-5-sonnet", Object: "model", OwnedBy: "monica"},
-		{ID: "claude-3-5-haiku", Object: "model", OwnedBy: "monica"},
-		{ID: "gemini-2.0-pro", Object: "model", OwnedBy: "monica"},
-		{ID: "gemini-2.0-flash", Object: "model", OwnedBy: "monica"},
-		{ID: "gemini-1.5-pro", Object: "model", OwnedBy: "monica"},
-		{ID: "o3-mini", Object: "model", OwnedBy: "monica"},
-		{ID: "o1-preview", Object: "model", OwnedBy: "monica"},
-		{ID: "deepseek-reasoner", Object: "model", OwnedBy: "monica"},
-		{ID: "deepseek-chat", Object: "model", OwnedBy: "monica"},
-		{ID: "deepclaude", Object: "model", OwnedBy: "monica"},
-		{ID: "sonar", Object: "model", OwnedBy: "monica"},
-	}
+var modelToBotMap = map[string]string{
+	"gpt-4o":       "gpt_4_o_chat",
+	"gpt-4o-mini":  "gpt_4_o_mini_chat",
+	"gpt-4.1":      "gpt_4_1",
+	"gpt-4.1-mini": "gpt_4_1_mini",
+	"gpt-4.1-nano": "gpt_4_1_nano",
+	"gpt-4-5":      "gpt_4_5_chat",
+	"o1-preview":   "openai_o_1",
+	"o3":           "o3",
+	"o3-mini":      "openai_o_3_mini",
+	"o4-mini":      "o4_mini",
 
-	return OpenAIModelList{
-		Object: "list",
-		Data:   models,
+	"claude-3-7-sonnet-thinking": "claude_3_7_sonnet_think",
+	"claude-3-7-sonnet":          "claude_3_7_sonnet",
+	"claude-3-5-sonnet":          "claude_3.5_sonnet",
+	"claude-3-5-haiku":           "claude_3.5_haiku",
+
+	"gemini-2.5-pro":   "gemini_2_5_pro",
+	"gemini-2.0-flash": "gemini_2_0",
+	"gemini-1":         "gemini_1_5",
+
+	"deepseek-reasoner": "deepseek_reasoner",
+	"deepseek-chat":     "deepseek_chat",
+	"deepclaude":        "deepclaude",
+
+	"sonar":               "sonar",
+	"sonar-reasoning-pro": "sonar_reasoning_pro",
+
+	"grok-3-beta": "grok_3_beta",
+}
+
+func modelToBot(model string) string {
+	if botUID, ok := modelToBotMap[model]; ok {
+		return botUID
 	}
+	// 如果未找到映射，则返回原始模型名称
+	log.Printf("Warning: No exact mapping found for model '%s'. Using original name.", model)
+	return model
+}
+
+// GetSupportedModels 获取支持的模型列表
+func GetSupportedModels() []string {
+	models := []string{
+		"gpt-4o",
+		"gpt-4o-mini",
+		"gpt-4-5",
+		"gpt-4.1",
+		"gpt-4.1-mini",
+		"gpt-4.1-nano",
+
+		"claude-3-7-sonnet-thinking",
+		"claude-3-7-sonnet",
+		"claude-3-5-sonnet",
+		"claude-3-5-haiku",
+
+		"gemini-2.5-pro",
+		"gemini-2.0-flash",
+		"gemini-1",
+
+		"o1-preview",
+		"o3",
+		"o3-mini",
+		"o4-mini",
+
+		"deepseek-reasoner",
+		"deepseek-chat",
+		"deepclaude",
+		"sonar",
+		"sonar-reasoning-pro",
+		"grok-3-beta",
+	}
+	return models
 }
 
 // ChatGPTToMonica 将 ChatGPTRequest 转换为 MonicaRequest
@@ -324,41 +371,4 @@ func ChatGPTToMonica(chatReq openai.ChatCompletionRequest) (*MonicaRequest, erro
 	// log.Printf("send: \n%s\n", indent)
 
 	return mReq, nil
-}
-
-func modelToBot(model string) string {
-	switch {
-	case strings.HasPrefix(model, "gpt-4o-mini"):
-		return "gpt_4_o_mini_chat"
-	case strings.HasPrefix(model, "gpt-4o"):
-		return "gpt_4_o_chat"
-	case strings.HasPrefix(model, "claude-3-7-sonnet-thinking"):
-		return "claude_3_7_sonnet_think"
-	case strings.HasPrefix(model, "claude-3-7-sonnet"):
-		return "claude_3_7_sonnet"
-	case strings.HasPrefix(model, "claude-3-5-sonnet"):
-		return "claude_3.5_sonnet"
-	case strings.HasPrefix(model, "claude-3-5-haiku"):
-		return "claude_3.5_haiku"
-	case strings.HasPrefix(model, "gemini-2.0-pro"):
-		return "gemini_2_0_pro"
-	case strings.HasPrefix(model, "gemini-2.0-flash"):
-		return "gemini_2_0"
-	case strings.HasPrefix(model, "gemini-1"):
-		return "gemini_1_5"
-	case strings.HasPrefix(model, "o1-preview"):
-		return "openai_o_1"
-	case strings.HasPrefix(model, "o3-mini"):
-		return "openai_o_3_mini"
-	case model == "deepseek-reasoner":
-		return "deepseek_reasoner"
-	case model == "deepseek-chat":
-		return "deepseek_chat"
-	case model == "deepclaude":
-		return "deepclaude"
-	case model == "sonar":
-		return "sonar"
-	default:
-		return model
-	}
 }

@@ -46,7 +46,7 @@ type AgentStatus struct {
 }
 
 var sseDataPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &SSEData{}
 	},
 }

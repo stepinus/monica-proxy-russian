@@ -13,7 +13,7 @@ func RandStringUsingMathRand(n int) string {
 
 	// 创建一个长度为 n 的切片，用来存放随机字符
 	result := make([]rune, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result[i] = letters[randSource.Intn(len(letters))]
 	}
 

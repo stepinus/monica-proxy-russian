@@ -25,14 +25,14 @@ func RegisterRoutes(e *echo.Echo) {
 func handleChatCompletion(c echo.Context) error {
 	var req openai.ChatCompletionRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{
+		return c.JSON(http.StatusBadRequest, map[string]any{
 			"error": "Invalid request payload",
 		})
 	}
 
 	// 检查请求是否包含消息
 	if len(req.Messages) == 0 {
-		return c.JSON(http.StatusBadRequest, map[string]interface{}{
+		return c.JSON(http.StatusBadRequest, map[string]any{
 			"error": "No messages found",
 		})
 	}
@@ -45,7 +45,7 @@ func handleChatCompletion(c echo.Context) error {
 	// 将 ChatGPTRequest 转换为 MonicaRequest
 	monicaReq, err := types.ChatGPTToMonica(req)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+		return c.JSON(http.StatusInternalServerError, map[string]any{
 			"error": err.Error(),
 		})
 	}
@@ -53,7 +53,7 @@ func handleChatCompletion(c echo.Context) error {
 	// 调用 Monica 并获取 SSE Stream
 	stream, err := monica.SendMonicaRequest(c.Request().Context(), monicaReq)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+		return c.JSON(http.StatusInternalServerError, map[string]any{
 			"error": err.Error(),
 		})
 	}
@@ -79,7 +79,7 @@ func handleChatCompletion(c echo.Context) error {
 		// 收集所有的 SSE 数据并转换为完整的响应
 		response, err := monica.CollectMonicaSSEToCompletion(req.Model, stream.RawBody())
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+			return c.JSON(http.StatusInternalServerError, map[string]any{
 				"error": err.Error(),
 			})
 		}
