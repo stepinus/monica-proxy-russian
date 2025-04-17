@@ -94,5 +94,58 @@ func handleChatCompletion(c echo.Context) error {
 // handleListModels 返回支持的模型列表
 func handleListModels(c echo.Context) error {
 	models := types.GetSupportedModels()
-	return c.JSON(http.StatusOK, models)
+	result := make(map[string][]struct {
+		Id string `json:"id"`
+	})
+
+	result["data"] = make([]struct {
+		Id string `json:"id"`
+	}, 0)
+
+	for _, model := range models {
+		result["data"] = append(result["data"], struct {
+			Id string `json:"id"`
+		}{
+			Id: model,
+		})
+	}
+	return c.JSON(http.StatusOK, result)
+}
+
+// handleImageGeneration 处理图片生成请求
+func handleImageGeneration(c echo.Context) error {
+	// 解析请求
+	var req types.ImageGenerationRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]any{
+			"error": map[string]any{
+				"message": "Invalid request payload",
+				"type":    "invalid_request_error",
+			},
+		})
+	}
+
+	// 验证必需字段
+	if req.Prompt == "" {
+		return c.JSON(http.StatusBadRequest, map[string]any{
+			"error": map[string]any{
+				"message": "Prompt is required",
+				"type":    "invalid_request_error",
+			},
+		})
+	}
+
+	// 调用 Monica 生成图片
+	resp, err := monica.GenerateImage(c.Request().Context(), &req)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]any{
+			"error": map[string]any{
+				"message": err.Error(),
+				"type":    "internal_server_error",
+			},
+		})
+	}
+
+	// 返回结果
+	return c.JSON(http.StatusOK, resp)
 }
