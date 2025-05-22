@@ -98,20 +98,20 @@ func (p *processMonicaSSE) processSSEStream(handler handleSSEData) error {
 
 		// 解析 JSON
 		if err := sonic.Unmarshal(jsonStr, sseData); err != nil {
-			sseData = &SSEData{}
+			*sseData = SSEData{}
 			sseDataPool.Put(sseData)
 			return fmt.Errorf("unmarshal error: %w", err)
 		}
 
 		// 调用处理函数
 		if err := handler(sseData); err != nil {
-			sseData = &SSEData{}
+			*sseData = SSEData{}
 			sseDataPool.Put(sseData)
 			return err
 		}
 
 		// 使用完后清理并放回对象池
-		sseData = &SSEData{}
+		*sseData = SSEData{}
 		sseDataPool.Put(sseData)
 	}
 }

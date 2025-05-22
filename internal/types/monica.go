@@ -209,6 +209,7 @@ var modelToBotMap = map[string]string{
 	"claude-3-5-haiku":           "claude_3.5_haiku",
 
 	"gemini-2.5-pro":   "gemini_2_5_pro",
+	"gemini-2.5-flash": "gemini_2_5_flash",
 	"gemini-2.0-flash": "gemini_2_0",
 	"gemini-1":         "gemini_1_5",
 
@@ -247,6 +248,7 @@ func GetSupportedModels() []string {
 		"claude-3-5-haiku",
 
 		"gemini-2.5-pro",
+		"gemini-2.5-flash",
 		"gemini-2.0-flash",
 		"gemini-1",
 
