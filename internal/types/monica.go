@@ -203,6 +203,10 @@ var modelToBotMap = map[string]string{
 	"o3-mini":      "openai_o_3_mini",
 	"o4-mini":      "o4_mini",
 
+	"claude-4-sonnet":            "claude_4_sonnet",
+	"claude-4-sonnet-thinking":   "claude_4_sonnet_think",
+	"claude-4-opus":              "claude_4_opus",
+	"claude-4-opus-thinking":     "claude_4_opus_think",
 	"claude-3-7-sonnet-thinking": "claude_3_7_sonnet_think",
 	"claude-3-7-sonnet":          "claude_3_7_sonnet",
 	"claude-3-5-sonnet":          "claude_3.5_sonnet",
@@ -242,6 +246,10 @@ func GetSupportedModels() []string {
 		"gpt-4.1-mini",
 		"gpt-4.1-nano",
 
+		"claude-4-sonnet",
+		"claude-4-sonnet-thinking",
+		"claude-4-opus",
+		"claude-4-opus-thinking",
 		"claude-3-7-sonnet-thinking",
 		"claude-3-7-sonnet",
 		"claude-3-5-sonnet",

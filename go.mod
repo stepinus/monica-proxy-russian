@@ -8,9 +8,9 @@ require (
 	github.com/bytedance/sonic v1.13.2
 	github.com/go-resty/resty/v2 v2.16.5
 	github.com/google/uuid v1.6.0
-	github.com/labstack/echo/v4 v4.13.3
-	github.com/samber/lo v1.49.1
-	github.com/sashabaranov/go-openai v1.38.2
+	github.com/labstack/echo/v4 v4.13.4
+	github.com/samber/lo v1.50.0
+	github.com/sashabaranov/go-openai v1.40.0
 )
 
 require github.com/cespare/xxhash/v2 v2.3.0
@@ -26,10 +26,10 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
-	golang.org/x/arch v0.16.0 // indirect
-	golang.org/x/crypto v0.37.0 // indirect
-	golang.org/x/net v0.39.0 // indirect
-	golang.org/x/sys v0.32.0 // indirect
-	golang.org/x/text v0.24.0 // indirect
+	golang.org/x/arch v0.17.0 // indirect
+	golang.org/x/crypto v0.38.0 // indirect
+	golang.org/x/net v0.40.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/text v0.25.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
 )
