@@ -3,6 +3,8 @@ package monica
 import (
 	"bufio"
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -72,7 +74,8 @@ func (p *processMonicaSSE) processSSEStream(handler handleSSEData) error {
 	for {
 		line, err = p.reader.ReadBytes('\n')
 		if err != nil {
-			if err == io.EOF {
+			// EOF 和 上下文取消 都是正常结束，不应视为错误
+			if err == io.EOF || errors.Is(err, context.Canceled) {
 				return nil
 			}
 			return fmt.Errorf("read error: %w", err)

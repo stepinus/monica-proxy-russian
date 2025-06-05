@@ -1,31 +1,37 @@
 package main
 
 import (
-	"errors"
-	"log"
+	"io"
 	"monica-proxy/internal/apiserver"
 	"monica-proxy/internal/config"
-	"net/http"
-
-	"github.com/labstack/echo/v4/middleware"
+	"monica-proxy/internal/logger"
 
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"go.uber.org/zap"
 )
 
 func main() {
-	// 加载配置
-	cfg := config.LoadConfig()
-	if cfg.MonicaCookie == "" {
-		log.Fatal("MONICA_COOKIE environment variable is required")
-	}
+	// 从环境变量加载配置
+	config.LoadConfig()
 
+	// 设置日志级别
+	logger.SetLevel("info")
+
+	// 设置 Echo Server
 	e := echo.New()
-	e.Use(middleware.Logger())
+	e.Logger.SetOutput(io.Discard)
+
+	// 添加基础中间件
 	e.Use(middleware.Recover())
+	e.Use(middleware.CORS())
+
 	// 注册路由
 	apiserver.RegisterRoutes(e)
-	// 启动服务
-	if err := e.Start("0.0.0.0:8080"); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatalf("start server error: %v", err)
+
+	// 启动服务器
+	logger.Info("启动服务器", zap.String("port", "8080"))
+	if err := e.Start(":8080"); err != nil {
+		logger.Fatal("启动服务器失败", zap.Error(err))
 	}
 }

@@ -16,6 +16,10 @@ const (
 	PreSignURL    = "https://api.monica.im/api/file_object/pre_sign_list_by_module"
 	FileUploadURL = "https://api.monica.im/api/files/batch_create_llm_file"
 	FileGetURL    = "https://api.monica.im/api/files/batch_get_file"
+
+	// 图片生成相关 API
+	ImageGenerateURL = "https://api.monica.im/api/image_tools/text_to_image"
+	ImageResultURL   = "https://api.monica.im/api/image_tools/loop_result"
 )
 
 // 图片相关常量
@@ -113,6 +117,16 @@ type PreSignResponse struct {
 		ObjectURLList  []string `json:"object_url_list"`
 		CDNURLList     []string `json:"cdn_url_list"`
 	} `json:"data"`
+}
+
+// MonicaImageRequest 文生图请求结构
+type MonicaImageRequest struct {
+	TaskUID     string `json:"task_uid"`     // 任务ID
+	ImageCount  int    `json:"image_count"`  // 生成图片数量
+	Prompt      string `json:"prompt"`       // 提示词
+	ModelType   string `json:"model_type"`   // 模型类型，目前只支持 sdxl
+	AspectRatio string `json:"aspect_ratio"` // 宽高比，如 1:1, 16:9, 9:16
+	TaskType    string `json:"task_type"`    // 任务类型，固定为 text_to_image
 }
 
 // FileInfo 文件信息
