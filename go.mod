@@ -12,7 +12,7 @@ require (
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0
-	github.com/samber/lo v1.50.0
+	github.com/samber/lo v1.51.0
 	go.uber.org/zap v1.27.0
 )
 

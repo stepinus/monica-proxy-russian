@@ -39,7 +39,7 @@ func BearerAuth() echo.MiddlewareFunc {
 					zap.String("method", c.Request().Method),
 					zap.String("uri", c.Request().RequestURI),
 					zap.String("remote_addr", c.RealIP()),
-					zap.String("token", token[0:4]+"..."), // 只显示部分token以保护安全
+					zap.Int("token_length", len(token)),
 				)
 				return echo.NewHTTPError(http.StatusUnauthorized, "invalid token")
 			}

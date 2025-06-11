@@ -1,27 +1,23 @@
-# 使用适合Go应用的基础镜像
-FROM golang:alpine AS builder
-ARG TARGETOS
-ARG TARGETARCH
-RUN apk update && apk add --no-cache upx make && rm -rf /var/cache/apk/*
-
-# 设置工作目录
+# syntax=docker/dockerfile:1.7
+FROM golang:alpine AS deps
 WORKDIR /app
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
-# 复制所有文件到容器中
+FROM golang:alpine AS builder
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+WORKDIR /app
+RUN apk add --no-cache make upx
 COPY . .
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    make build GOOS=${TARGETOS} GOARCH=${TARGETARCH}
 
-# 下载依赖
-RUN go mod tidy
-
-# 构建应用程序
-RUN make build-${TARGETOS}-${TARGETARCH}
-
-FROM scratch AS final
+FROM gcr.io/distroless/static:nonroot AS final
 WORKDIR /data
 COPY --from=builder /app/build/monica /data/monica
 
-# 开放端口
 EXPOSE 8080
-
-# 运行
+USER nonroot:nonroot
 CMD ["./monica"]
