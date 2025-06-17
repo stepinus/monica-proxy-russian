@@ -50,6 +50,10 @@ func (s *chatService) HandleChatCompletion(ctx context.Context, req *openai.Chat
 	stream, err := monica.SendMonicaRequest(ctx, monicaReq)
 	if err != nil {
 		logger.Error("调用Monica API失败", zap.Error(err))
+		// 如果已经是AppError，直接返回，否则包装为内部错误
+		if appErr, ok := err.(*errors.AppError); ok {
+			return nil, appErr
+		}
 		return nil, errors.NewInternalError(err)
 	}
 	// 根据是否使用流式响应处理结果

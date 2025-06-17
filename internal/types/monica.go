@@ -3,12 +3,13 @@ package types
 import (
 	"context"
 	"fmt"
-	"log"
+	"monica-proxy/internal/logger"
 
 	lop "github.com/samber/lo/parallel"
 
 	"github.com/google/uuid"
 	"github.com/sashabaranov/go-openai"
+	"go.uber.org/zap"
 )
 
 const (
@@ -246,7 +247,7 @@ func modelToBot(model string) string {
 		return botUID
 	}
 	// 如果未找到映射，则返回原始模型名称
-	log.Printf("Warning: No exact mapping found for model '%s'. Using original name.", model)
+	logger.Warn("未找到模型映射，使用原始名称", zap.String("model", model))
 	return model
 }
 
@@ -340,7 +341,8 @@ func ChatGPTToMonica(chatReq openai.ChatCompletionRequest) (*MonicaRequest, erro
 			fileIfoList := lop.Map(imgUrl, func(item *openai.ChatMessageImageURL, _ int) FileInfo {
 				f, err := UploadBase64Image(ctx, item.URL)
 				if err != nil {
-					log.Println(err)
+					logger.Error("上传图片失败", zap.Error(err), zap.String("image_url", item.URL))
+					// 可以选择跳过失败的图片或者返回错误
 					return FileInfo{}
 				}
 				return *f

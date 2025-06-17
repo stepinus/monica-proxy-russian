@@ -2,11 +2,14 @@ package monica
 
 import (
 	"context"
-	"github.com/go-resty/resty/v2"
-	"log"
 	"monica-proxy/internal/config"
+	"monica-proxy/internal/errors"
+	"monica-proxy/internal/logger"
 	"monica-proxy/internal/types"
 	"monica-proxy/internal/utils"
+
+	"github.com/go-resty/resty/v2"
+	"go.uber.org/zap"
 )
 
 // SendMonicaRequest 发起对 Monica AI 的请求(使用 resty)
@@ -19,8 +22,8 @@ func SendMonicaRequest(ctx context.Context, mReq *types.MonicaRequest) (*resty.R
 		Post(types.BotChatURL)
 
 	if err != nil {
-		log.Printf("monica API error: %v", err)
-		return nil, err
+		logger.Error("Monica API请求失败", zap.Error(err))
+		return nil, errors.NewRequestFailedError("Monica API调用失败", err)
 	}
 
 	// 如果需要在这里做更多判断，可自行补充

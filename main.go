@@ -25,6 +25,7 @@ func main() {
 	// 添加基础中间件
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
+	e.Use(middleware.RequestID())
 
 	// 注册路由
 	apiserver.RegisterRoutes(e)
