@@ -1,6 +1,7 @@
 package service
 
 import (
+	"monica-proxy/internal/config"
 	"monica-proxy/internal/logger"
 	"monica-proxy/internal/types"
 
@@ -14,11 +15,15 @@ type ModelService interface {
 }
 
 // modelService 模型服务实现
-type modelService struct{}
+type modelService struct {
+	config *config.Config
+}
 
 // NewModelService 创建模型服务实例
-func NewModelService() ModelService {
-	return &modelService{}
+func NewModelService(cfg *config.Config) ModelService {
+	return &modelService{
+		config: cfg,
+	}
 }
 
 // GetSupportedModels 获取支持的模型列表

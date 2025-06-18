@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"io"
+	"monica-proxy/internal/config"
 	"monica-proxy/internal/errors"
 	"monica-proxy/internal/middleware"
 	"monica-proxy/internal/monica"
@@ -13,39 +14,32 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-// 服务实例
-var (
-	chatService  service.ChatService
-	modelService service.ModelService
-	imageService service.ImageService
-)
-
-// 初始化服务
-func init() {
-	chatService = service.NewChatService()
-	modelService = service.NewModelService()
-	imageService = service.NewImageService()
-}
 
 // RegisterRoutes 注册 Echo 路由
-func RegisterRoutes(e *echo.Echo) {
+func RegisterRoutes(e *echo.Echo, cfg *config.Config) {
 	// 设置自定义错误处理器
 	e.HTTPErrorHandler = middleware.ErrorHandler()
 
 	// 添加中间件
-	e.Use(middleware.BearerAuth())
-	e.Use(middleware.RequestLogger())
+	e.Use(middleware.BearerAuth(cfg))
+	e.Use(middleware.RequestLogger(cfg))
+
+	// 初始化服务实例
+	chatService := service.NewChatService(cfg)
+	modelService := service.NewModelService(cfg)
+	imageService := service.NewImageService(cfg)
 
 	// ChatGPT 风格的请求转发到 /v1/chat/completions
-	e.POST("/v1/chat/completions", handleChatCompletion)
+	e.POST("/v1/chat/completions", createChatCompletionHandler(chatService))
 	// 获取支持的模型列表
-	e.GET("/v1/models", handleListModels)
+	e.GET("/v1/models", createListModelsHandler(modelService))
 	// DALL-E 风格的图片生成请求
-	e.POST("/v1/images/generations", handleImageGeneration)
+	e.POST("/v1/images/generations", createImageGenerationHandler(imageService))
 }
 
-// handleChatCompletion 接收 ChatGPT 形式的对话请求并转发给 Monica
-func handleChatCompletion(c echo.Context) error {
+// createChatCompletionHandler 创建聊天完成处理器
+func createChatCompletionHandler(chatService service.ChatService) echo.HandlerFunc {
+	return func(c echo.Context) error {
 	var req openai.ChatCompletionRequest
 	if err := c.Bind(&req); err != nil {
 		return errors.NewBadRequestError("无效的请求数据", err)
@@ -86,10 +80,12 @@ func handleChatCompletion(c echo.Context) error {
 		// 对于非流式请求，直接返回JSON响应
 		return c.JSON(http.StatusOK, result)
 	}
+	}
 }
 
-// handleListModels 返回支持的模型列表
-func handleListModels(c echo.Context) error {
+// createListModelsHandler 创建模型列表处理器
+func createListModelsHandler(modelService service.ModelService) echo.HandlerFunc {
+	return func(c echo.Context) error {
 	// 调用服务获取模型列表
 	models := modelService.GetSupportedModels()
 
@@ -110,10 +106,12 @@ func handleListModels(c echo.Context) error {
 		})
 	}
 	return c.JSON(http.StatusOK, result)
+	}
 }
 
-// handleImageGeneration 处理图片生成请求
-func handleImageGeneration(c echo.Context) error {
+// createImageGenerationHandler 创建图片生成处理器
+func createImageGenerationHandler(imageService service.ImageService) echo.HandlerFunc {
+	return func(c echo.Context) error {
 	// 解析请求
 	var req types.ImageGenerationRequest
 	if err := c.Bind(&req); err != nil {
@@ -128,4 +126,5 @@ func handleImageGeneration(c echo.Context) error {
 
 	// 返回结果
 	return c.JSON(http.StatusOK, resp)
+	}
 }

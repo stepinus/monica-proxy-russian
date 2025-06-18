@@ -13,7 +13,7 @@ import (
 )
 
 // GenerateImage 使用 Monica 的文生图 API 生成图片
-func GenerateImage(ctx context.Context, req *types.ImageGenerationRequest) (*types.ImageGenerationResponse, error) {
+func GenerateImage(ctx context.Context, cfg *config.Config, req *types.ImageGenerationRequest) (*types.ImageGenerationResponse, error) {
 	// 1. 参数验证和默认值设置
 	if req.Model == "" {
 		req.Model = "dall-e-3" // 默认使用 dall-e-3
@@ -42,7 +42,7 @@ func GenerateImage(ctx context.Context, req *types.ImageGenerationRequest) (*typ
 	resp, err := utils.RestyDefaultClient.R().
 		SetContext(ctx).
 		SetBody(monicaReq).
-		SetHeader("cookie", config.MonicaConfig.MonicaCookie).
+		SetHeader("cookie", cfg.Monica.Cookie).
 		Post(types.ImageGenerateURL)
 
 	if err != nil {
@@ -99,7 +99,7 @@ func GenerateImage(ctx context.Context, req *types.ImageGenerationRequest) (*typ
 				SetBody(map[string]any{
 					"image_tools_id": imageToolsID,
 				}).
-				SetHeader("cookie", config.MonicaConfig.MonicaCookie).
+				SetHeader("cookie", cfg.Monica.Cookie).
 				SetResult(&resultData).
 				Post(types.ImageResultURL)
 

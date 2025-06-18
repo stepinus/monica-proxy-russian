@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"monica-proxy/internal/config"
 	"monica-proxy/internal/errors"
 	"monica-proxy/internal/logger"
 	"monica-proxy/internal/monica"
@@ -18,11 +19,15 @@ type ChatService interface {
 }
 
 // chatService 聊天服务实现
-type chatService struct{}
+type chatService struct {
+	config *config.Config
+}
 
 // NewChatService 创建聊天服务实例
-func NewChatService() ChatService {
-	return &chatService{}
+func NewChatService(cfg *config.Config) ChatService {
+	return &chatService{
+		config: cfg,
+	}
 }
 
 // HandleChatCompletion 处理聊天完成请求
@@ -40,14 +45,14 @@ func (s *chatService) HandleChatCompletion(ctx context.Context, req *openai.Chat
 	// )
 
 	// 转换请求格式
-	monicaReq, err := types.ChatGPTToMonica(*req)
+	monicaReq, err := types.ChatGPTToMonica(s.config, *req)
 	if err != nil {
 		logger.Error("转换请求失败", zap.Error(err))
 		return nil, errors.NewInternalError(err)
 	}
 
 	// 调用Monica API
-	stream, err := monica.SendMonicaRequest(ctx, monicaReq)
+	stream, err := monica.SendMonicaRequest(ctx, s.config, monicaReq)
 	if err != nil {
 		logger.Error("调用Monica API失败", zap.Error(err))
 		// 如果已经是AppError，直接返回，否则包装为内部错误

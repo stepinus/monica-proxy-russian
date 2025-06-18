@@ -3,6 +3,7 @@ package types
 import (
 	"context"
 	"fmt"
+	"monica-proxy/internal/config"
 	"monica-proxy/internal/logger"
 	"sync/atomic"
 	"time"
@@ -295,7 +296,7 @@ func GetSupportedModels() []string {
 }
 
 // ChatGPTToMonica 将 ChatGPTRequest 转换为 MonicaRequest
-func ChatGPTToMonica(chatReq openai.ChatCompletionRequest) (*MonicaRequest, error) {
+func ChatGPTToMonica(cfg *config.Config, chatReq openai.ChatCompletionRequest) (*MonicaRequest, error) {
 	if len(chatReq.Messages) == 0 {
 		return nil, fmt.Errorf("empty messages")
 	}
@@ -350,7 +351,7 @@ func ChatGPTToMonica(chatReq openai.ChatCompletionRequest) (*MonicaRequest, erro
 			
 			// 并发上传图片并收集结果
 			uploadResults := lop.Map(imgUrl, func(item *openai.ChatMessageImageURL, _ int) *FileInfo {
-				f, err := UploadBase64Image(uploadCtx, item.URL)
+				f, err := UploadBase64Image(uploadCtx, cfg, item.URL)
 				if err != nil {
 					atomic.AddInt64(&failureCount, 1)
 					logger.Error("上传图片失败", 

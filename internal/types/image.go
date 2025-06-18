@@ -40,7 +40,7 @@ func sampleAndHash(data string) string {
 }
 
 // UploadBase64Image 上传base64编码的图片到Monica
-func UploadBase64Image(ctx context.Context, base64Data string) (*FileInfo, error) {
+func UploadBase64Image(ctx context.Context, cfg *config.Config, base64Data string) (*FileInfo, error) {
 	// 1. 生成缓存key
 	cacheKey := sampleAndHash(base64Data)
 
@@ -86,7 +86,7 @@ func UploadBase64Image(ctx context.Context, base64Data string) (*FileInfo, error
 	var preSignResp PreSignResponse
 	_, err = utils.RestyDefaultClient.R().
 		SetContext(ctx).
-		SetHeader("cookie", config.MonicaConfig.MonicaCookie).
+		SetHeader("cookie", cfg.Monica.Cookie).
 		SetBody(preSignReq).
 		SetResult(&preSignResp).
 		Post(PreSignURL)
@@ -120,7 +120,7 @@ func UploadBase64Image(ctx context.Context, base64Data string) (*FileInfo, error
 	var uploadResp FileUploadResponse
 	_, err = utils.RestyDefaultClient.R().
 		SetContext(ctx).
-		SetHeader("cookie", config.MonicaConfig.MonicaCookie).
+		SetHeader("cookie", cfg.Monica.Cookie).
 		SetBody(uploadReq).
 		SetResult(&uploadResp).
 		Post(FileUploadURL)
@@ -153,7 +153,7 @@ func UploadBase64Image(ctx context.Context, base64Data string) (*FileInfo, error
 		}
 		_, err = utils.RestyDefaultClient.R().
 			SetContext(ctx).
-			SetHeader("cookie", config.MonicaConfig.MonicaCookie).
+			SetHeader("cookie", cfg.Monica.Cookie).
 			SetBody(reqMap).
 			SetResult(&batchResp).
 			Post(FileGetURL)

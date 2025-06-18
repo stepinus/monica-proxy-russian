@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"monica-proxy/internal/config"
 	"monica-proxy/internal/errors"
 	"monica-proxy/internal/logger"
 	"monica-proxy/internal/monica"
@@ -17,11 +18,15 @@ type ImageService interface {
 }
 
 // imageService 图像服务实现
-type imageService struct{}
+type imageService struct {
+	config *config.Config
+}
 
 // NewImageService 创建图像服务实例
-func NewImageService() ImageService {
-	return &imageService{}
+func NewImageService(cfg *config.Config) ImageService {
+	return &imageService{
+		config: cfg,
+	}
 }
 
 // GenerateImage 生成图像
@@ -50,7 +55,7 @@ func (s *imageService) GenerateImage(ctx context.Context, req *types.ImageGenera
 	)
 
 	// 调用Monica API生成图像
-	response, err := monica.GenerateImage(ctx, req)
+	response, err := monica.GenerateImage(ctx, s.config, req)
 	if err != nil {
 		logger.Error("生成图像失败", zap.Error(err))
 		return nil, errors.NewImageGenerationError(err)
