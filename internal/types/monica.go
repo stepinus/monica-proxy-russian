@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"monica-proxy/internal/logger"
+	"sync/atomic"
+	"time"
 
 	lop "github.com/samber/lo/parallel"
 
@@ -25,9 +27,11 @@ const (
 
 // 图片相关常量
 const (
-	MaxImageSize  = 10 * 1024 * 1024 // 10MB
-	ImageModule   = "chat_bot"
-	ImageLocation = "files"
+	MaxImageSize         = 10 * 1024 * 1024 // 10MB
+	ImageModule          = "chat_bot"
+	ImageLocation        = "files"
+	ImageUploadTimeout   = 30 * time.Second  // 图片上传超时时间
+	MaxConcurrentUploads = 5                 // 最大并发上传数
 )
 
 // 支持的图片格式
@@ -337,16 +341,57 @@ func ChatGPTToMonica(chatReq openai.ChatCompletionRequest) (*MonicaRequest, erro
 
 		var content ItemContent
 		if len(imgUrl) > 0 {
-			ctx := context.Background()
-			fileIfoList := lop.Map(imgUrl, func(item *openai.ChatMessageImageURL, _ int) FileInfo {
-				f, err := UploadBase64Image(ctx, item.URL)
+			// 为图片上传创建带超时的上下文
+			uploadCtx, cancel := context.WithTimeout(context.Background(), ImageUploadTimeout)
+			defer cancel()
+			
+			// 统计上传成功和失败数量
+			var successCount, failureCount int64
+			
+			// 并发上传图片并收集结果
+			uploadResults := lop.Map(imgUrl, func(item *openai.ChatMessageImageURL, _ int) *FileInfo {
+				f, err := UploadBase64Image(uploadCtx, item.URL)
 				if err != nil {
-					logger.Error("上传图片失败", zap.Error(err), zap.String("image_url", item.URL))
-					// 可以选择跳过失败的图片或者返回错误
-					return FileInfo{}
+					atomic.AddInt64(&failureCount, 1)
+					logger.Error("上传图片失败", 
+						zap.Error(err), 
+						zap.String("image_url", item.URL),
+						zap.Int("total_images", len(imgUrl)),
+					)
+					return nil // 返回 nil 表示失败
 				}
-				return *f
+				
+				if f == nil {
+					atomic.AddInt64(&failureCount, 1)
+					logger.Warn("图片上传返回空结果", zap.String("image_url", item.URL))
+					return nil
+				}
+				
+				atomic.AddInt64(&successCount, 1)
+				return f
 			})
+			
+			// 过滤掉失败的上传，只保留成功的
+			fileIfoList := make([]FileInfo, 0, len(uploadResults))
+			for _, result := range uploadResults {
+				if result != nil {
+					fileIfoList = append(fileIfoList, *result)
+				}
+			}
+			
+			// 记录上传统计信息
+			if failureCount > 0 {
+				logger.Warn("图片上传完成",
+					zap.Int64("success_count", successCount),
+					zap.Int64("failure_count", failureCount),
+					zap.Int("total_images", len(imgUrl)),
+				)
+			} else {
+				logger.Info("所有图片上传成功",
+					zap.Int64("success_count", successCount),
+					zap.Int("total_images", len(imgUrl)),
+				)
+			}
 
 			content = ItemContent{
 				Type:        "file_with_text",

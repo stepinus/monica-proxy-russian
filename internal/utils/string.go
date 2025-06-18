@@ -2,20 +2,43 @@ package utils
 
 import (
 	"math/rand"
+	"strings"
+	"sync"
 	"time"
 )
 
-var randSource = rand.New(rand.NewSource(time.Now().UnixNano()))
+var (
+	randSource = rand.New(rand.NewSource(time.Now().UnixNano()))
+	letters    = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+	// 字符串构建器池，用于生成随机字符串
+	randStringBuilderPool = sync.Pool{
+		New: func() any {
+			return &strings.Builder{}
+		},
+	}
+)
 
 // RandStringUsingMathRand 生成指定长度的随机字符串
 func RandStringUsingMathRand(n int) string {
-	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-
-	// 创建一个长度为 n 的切片，用来存放随机字符
-	result := make([]rune, n)
-	for i := range n {
-		result[i] = letters[randSource.Intn(len(letters))]
+	if n <= 0 {
+		return ""
 	}
 
-	return string(result)
+	// 从池中获取字符串构建器
+	sb := randStringBuilderPool.Get().(*strings.Builder)
+	defer func() {
+		sb.Reset()
+		randStringBuilderPool.Put(sb)
+	}()
+
+	// 预分配容量
+	sb.Grow(n)
+
+	// 生成随机字符
+	for range n {
+		sb.WriteRune(letters[randSource.Intn(len(letters))])
+	}
+
+	return sb.String()
 }

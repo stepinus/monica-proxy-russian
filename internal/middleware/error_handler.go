@@ -9,6 +9,17 @@ import (
 	"go.uber.org/zap"
 )
 
+// buildErrorResponse 构建统一的错误响应格式
+func buildErrorResponse(code any, message, requestID string) map[string]any {
+	return map[string]any{
+		"error": map[string]any{
+			"code":       code,
+			"message":    message,
+			"request_id": requestID,
+		},
+	}
+}
+
 // ErrorHandler 创建统一的错误处理中间件
 func ErrorHandler() echo.HTTPErrorHandler {
 	return func(err error, c echo.Context) {
@@ -17,14 +28,8 @@ func ErrorHandler() echo.HTTPErrorHandler {
 
 		// 处理应用错误
 		if appErr, ok := err.(*errors.AppError); ok {
-			status, response := appErr.HTTPResponse()
-
-			// 添加请求ID到响应中
-			if response["error"] != nil {
-				if errMap, ok := response["error"].(map[string]any); ok {
-					errMap["request_id"] = requestID
-				}
-			}
+			status, _ := appErr.HTTPResponse()
+			response := buildErrorResponse(appErr.Code, appErr.Message, requestID)
 
 			// 记录错误日志
 			logger.Error("应用错误",
@@ -32,6 +37,7 @@ func ErrorHandler() echo.HTTPErrorHandler {
 				zap.Int("error_code", int(appErr.Code)),
 				zap.String("error_msg", appErr.Message),
 				zap.Error(appErr.Err),
+				zap.String("request_id", requestID),
 			)
 
 			c.JSON(status, response)
@@ -47,19 +53,14 @@ func ErrorHandler() echo.HTTPErrorHandler {
 			}
 
 			// 构建响应
-			response := map[string]any{
-				"error": map[string]any{
-					"code":       echoErr.Code,
-					"message":    message,
-					"request_id": requestID,
-				},
-			}
+			response := buildErrorResponse(echoErr.Code, message, requestID)
 
 			// 记录错误日志
 			logger.Error("框架错误",
 				zap.Int("status", status),
 				zap.String("error_msg", message),
 				zap.Error(err),
+				zap.String("request_id", requestID),
 			)
 
 			c.JSON(status, response)
@@ -68,18 +69,13 @@ func ErrorHandler() echo.HTTPErrorHandler {
 
 		// 处理其他错误
 		status := http.StatusInternalServerError
-		response := map[string]any{
-			"error": map[string]any{
-				"code":       status,
-				"message":    "服务器内部错误",
-				"request_id": requestID,
-			},
-		}
+		response := buildErrorResponse(status, "服务器内部错误", requestID)
 
 		// 记录错误日志
 		logger.Error("未分类错误",
 			zap.Int("status", status),
 			zap.Error(err),
+			zap.String("request_id", requestID),
 		)
 
 		c.JSON(status, response)

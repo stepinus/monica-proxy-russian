@@ -47,17 +47,34 @@ type AgentStatus struct {
 	} `json:"metadata"`
 }
 
-var sseDataPool = sync.Pool{
-	New: func() any {
-		return &SSEData{}
-	},
-}
+var (
+	sseDataPool = sync.Pool{
+		New: func() any {
+			return &SSEData{}
+		},
+	}
+	
+	// 字符串构建器池，复用strings.Builder
+	stringBuilderPool = sync.Pool{
+		New: func() any {
+			return &strings.Builder{}
+		},
+	}
+	
+	// 缓冲区池，复用字节缓冲区
+	bufferPool = sync.Pool{
+		New: func() any {
+			buf := make([]byte, bufferSize)
+			return &buf
+		},
+	}
+)
 
 // processMonicaSSE 处理Monica的SSE数据
 type processMonicaSSE struct {
 	reader *bufio.Reader
 	model  string
-	buf    []byte
+	ctx    context.Context
 }
 
 // handleSSEData 处理单条SSE数据
@@ -65,13 +82,16 @@ type handleSSEData func(*SSEData) error
 
 // processSSEStream 处理SSE流
 func (p *processMonicaSSE) processSSEStream(handler handleSSEData) error {
-	if p.buf == nil {
-		p.buf = make([]byte, 4096)
-	}
-
 	var line []byte
 	var err error
 	for {
+		// 检查上下文是否已取消
+		select {
+		case <-p.ctx.Done():
+			return p.ctx.Err()
+		default:
+		}
+		
 		line, err = p.reader.ReadBytes('\n')
 		if err != nil {
 			// EOF 和 上下文取消 都是正常结束，不应视为错误
@@ -98,9 +118,10 @@ func (p *processMonicaSSE) processSSEStream(handler handleSSEData) error {
 
 		// 从对象池获取一个对象
 		sseData := sseDataPool.Get().(*SSEData)
-
+		
 		// 解析 JSON
 		if err := sonic.Unmarshal(jsonStr, sseData); err != nil {
+			// 立即归还对象到池中
 			*sseData = SSEData{}
 			sseDataPool.Put(sseData)
 			return fmt.Errorf("unmarshal error: %w", err)
@@ -108,12 +129,13 @@ func (p *processMonicaSSE) processSSEStream(handler handleSSEData) error {
 
 		// 调用处理函数
 		if err := handler(sseData); err != nil {
+			// 立即归还对象到池中
 			*sseData = SSEData{}
 			sseDataPool.Put(sseData)
 			return err
 		}
-
-		// 使用完后清理并放回对象池
+		
+		// 使用完后立即归还对象到池中
 		*sseData = SSEData{}
 		sseDataPool.Put(sseData)
 	}
@@ -121,10 +143,19 @@ func (p *processMonicaSSE) processSSEStream(handler handleSSEData) error {
 
 // CollectMonicaSSEToCompletion 将 Monica SSE 转换为完整的 ChatCompletion 响应
 func CollectMonicaSSEToCompletion(model string, r io.Reader) (*openai.ChatCompletionResponse, error) {
-	var fullContent strings.Builder
+	ctx := context.Background()
+	
+	// 从池中获取字符串构建器
+	fullContentBuilder := stringBuilderPool.Get().(*strings.Builder)
+	defer func() {
+		fullContentBuilder.Reset()
+		stringBuilderPool.Put(fullContentBuilder)
+	}()
+	
 	processor := &processMonicaSSE{
 		reader: bufio.NewReaderSize(r, bufferSize),
 		model:  model,
+		ctx:    ctx,
 	}
 
 	// 处理SSE数据
@@ -134,7 +165,7 @@ func CollectMonicaSSEToCompletion(model string, r io.Reader) (*openai.ChatComple
 			return nil
 		}
 		// 累积内容
-		fullContent.WriteString(sseData.Text)
+		fullContentBuilder.WriteString(sseData.Text)
 		return nil
 	})
 
@@ -153,7 +184,7 @@ func CollectMonicaSSEToCompletion(model string, r io.Reader) (*openai.ChatComple
 				Index: 0,
 				Message: openai.ChatCompletionMessage{
 					Role:    "assistant",
-					Content: fullContent.String(),
+					Content: fullContentBuilder.String(),
 				},
 				FinishReason: "stop",
 			},
@@ -171,6 +202,7 @@ func CollectMonicaSSEToCompletion(model string, r io.Reader) (*openai.ChatComple
 
 // StreamMonicaSSEToClient 将 Monica SSE 转成前端可用的流
 func StreamMonicaSSEToClient(model string, w io.Writer, r io.Reader) error {
+	ctx := context.Background()
 	writer := bufio.NewWriterSize(w, bufferSize)
 	defer writer.Flush()
 
@@ -204,6 +236,7 @@ func StreamMonicaSSEToClient(model string, w io.Writer, r io.Reader) error {
 	processor := &processMonicaSSE{
 		reader: bufio.NewReaderSize(r, bufferSize),
 		model:  model,
+		ctx:    ctx,
 	}
 
 	var thinkFlag bool
@@ -287,7 +320,8 @@ func StreamMonicaSSEToClient(model string, w io.Writer, r io.Reader) error {
 			}
 		}
 
-		var sb strings.Builder
+		// 从池中获取字符串构建器
+		sb := stringBuilderPool.Get().(*strings.Builder)
 		sb.WriteString("data: ")
 		sendLine, _ := sonic.MarshalString(sseMsg)
 		sb.WriteString(sendLine)
@@ -295,8 +329,15 @@ func StreamMonicaSSEToClient(model string, w io.Writer, r io.Reader) error {
 
 		// 写入缓冲区
 		if _, err := writer.WriteString(sb.String()); err != nil {
+			// 归还字符串构建器到池中
+			sb.Reset()
+			stringBuilderPool.Put(sb)
 			return fmt.Errorf("write error: %w", err)
 		}
+		
+		// 使用完毕，归还字符串构建器到池中
+		sb.Reset()
+		stringBuilderPool.Put(sb)
 
 		// 如果发现 finished=true，就可以结束
 		if sseData.Finished {
