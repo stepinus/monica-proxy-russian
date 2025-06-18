@@ -121,8 +121,8 @@ func getDefaultConfig() *Config {
 		},
 		Security: SecurityConfig{
 			TLSSkipVerify:    true,
-			RateLimitEnabled: true,
-			RateLimitRPS:     100,
+			RateLimitEnabled: false, // 默认禁用，需要明确配置
+			RateLimitRPS:     0,     // 默认0，禁用限流
 			RequestTimeout:   30 * time.Second,
 		},
 		HTTPClient: HTTPClientConfig{
@@ -230,6 +230,16 @@ func overrideWithEnv(config *Config) {
 			config.Security.TLSSkipVerify = skip
 		}
 	}
+	if rateLimitEnabled := os.Getenv("RATE_LIMIT_ENABLED"); rateLimitEnabled != "" {
+		if enabled, err := strconv.ParseBool(rateLimitEnabled); err == nil {
+			config.Security.RateLimitEnabled = enabled
+		}
+	}
+	if rateLimitRPS := os.Getenv("RATE_LIMIT_RPS"); rateLimitRPS != "" {
+		if rps, err := strconv.Atoi(rateLimitRPS); err == nil {
+			config.Security.RateLimitRPS = rps
+		}
+	}
 
 	// 日志配置
 	if level := os.Getenv("LOG_LEVEL"); level != "" {
@@ -263,6 +273,18 @@ func (c *Config) Validate() error {
 	}
 	if c.HTTPClient.Timeout < 0 {
 		errors = append(errors, "HTTP_CLIENT_TIMEOUT must be positive")
+	}
+
+	// 验证限流配置
+	if c.Security.RateLimitRPS <= 0 {
+		// 如果RPS<=0，自动禁用限流
+		c.Security.RateLimitEnabled = false
+	}
+	if c.Security.RateLimitEnabled && c.Security.RateLimitRPS <= 0 {
+		errors = append(errors, "RATE_LIMIT_RPS must be positive when rate limiting is enabled")
+	}
+	if c.Security.RateLimitRPS > 10000 {
+		errors = append(errors, "RATE_LIMIT_RPS should not exceed 10000 for performance reasons")
 	}
 
 	// 验证日志级别

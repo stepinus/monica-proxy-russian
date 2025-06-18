@@ -1,0 +1,58 @@
+# Monica Proxy 配置文件示例
+# 将此文件复制为 config.yaml 并填入实际值
+
+# 服务器配置
+server:
+  host: "0.0.0.0"
+  port: 8080
+  read_timeout: "30s"
+  write_timeout: "30s"
+  idle_timeout: "60s"
+
+# Monica API 配置
+monica:
+  # Monica 登录后的 Cookie (必填)
+  cookie: "YOUR_MONICA_COOKIE_HERE"
+
+# 安全配置
+security:
+  # API访问令牌 (必填)
+  bearer_token: "YOUR_BEARER_TOKEN_HERE"
+  # 是否跳过TLS验证 (生产环境建议设为 false)
+  tls_skip_verify: true
+  # 是否启用限流 (基于客户端IP)
+  rate_limit_enabled: false  # 默认禁用，需要明确启用
+  # 每秒请求数限制 (每个IP独立计算，0=禁用限流)
+  rate_limit_rps: 0
+  # 请求超时时间
+  request_timeout: "30s"
+
+# HTTP客户端配置
+http_client:
+  # 请求超时时间
+  timeout: "3m"
+  # 最大空闲连接数
+  max_idle_conns: 100
+  # 每个主机最大空闲连接数
+  max_idle_conns_per_host: 10
+  # 每个主机最大连接数
+  max_conns_per_host: 50
+  # 重试次数
+  retry_count: 3
+  # 重试等待时间
+  retry_wait_time: "1s"
+  # 最大重试等待时间
+  retry_max_wait_time: "10s"
+
+# 日志配置
+logging:
+  # 日志级别: debug, info, warn, error
+  level: "info"
+  # 日志格式: json, console
+  format: "json"
+  # 日志输出: stdout, stderr, file
+  output: "stdout"
+  # 是否启用请求日志
+  enable_request_log: true
+  # 是否掩盖敏感信息
+  mask_sensitive: true

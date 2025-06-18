@@ -7,6 +7,7 @@ import (
 	"monica-proxy/internal/config"
 	"monica-proxy/internal/logger"
 	"monica-proxy/internal/utils"
+	customMiddleware "monica-proxy/internal/middleware"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -59,6 +60,9 @@ func newApp(cfg *config.Config) *App {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 	e.Use(middleware.RequestID())
+	
+	// 添加限流中间件
+	e.Use(customMiddleware.RateLimit(cfg))
 
 	// 注册路由
 	apiserver.RegisterRoutes(e, cfg)
