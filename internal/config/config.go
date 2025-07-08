@@ -112,8 +112,8 @@ func getDefaultConfig() *Config {
 		Server: ServerConfig{
 			Host:         "0.0.0.0",
 			Port:         8080,
-			ReadTimeout:  30 * time.Second,
-			WriteTimeout: 30 * time.Second,
+			ReadTimeout:  5 * time.Minute,
+			WriteTimeout: 5 * time.Minute,
 			IdleTimeout:  60 * time.Second,
 		},
 		Monica: MonicaConfig{
