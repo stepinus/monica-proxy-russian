@@ -212,6 +212,7 @@ type OpenAIModelList struct {
 }
 
 var modelToBotMap = map[string]string{
+	"gpt-5":        "gpt-5",
 	"gpt-4o":       "gpt_4_o_chat",
 	"gpt-4o-mini":  "gpt_4_o_mini_chat",
 	"gpt-4.1":      "gpt_4_1",
@@ -245,6 +246,7 @@ var modelToBotMap = map[string]string{
 	"sonar-reasoning-pro": "sonar_reasoning_pro",
 
 	"grok-3-beta": "grok_3_beta",
+	"grok-4":      "grok_4",
 }
 
 func modelToBot(model string) string {
@@ -259,6 +261,7 @@ func modelToBot(model string) string {
 // GetSupportedModels 获取支持的模型列表
 func GetSupportedModels() []string {
 	models := []string{
+		"gpt-5",
 		"gpt-4o",
 		"gpt-4o-mini",
 		"gpt-4-5",
@@ -291,6 +294,7 @@ func GetSupportedModels() []string {
 		"sonar",
 		"sonar-reasoning-pro",
 		"grok-3-beta",
+		"grok-4",
 	}
 	return models
 }
