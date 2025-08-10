@@ -10,8 +10,9 @@ import (
 
 var (
 	// 全局日志实例
-	logger *zap.Logger
-	once   sync.Once
+	logger      *zap.Logger
+	atomicLevel zap.AtomicLevel
+	once        sync.Once
 )
 
 // 初始化日志
@@ -38,11 +39,14 @@ func newLogger() *zap.Logger {
 		EncodeCaller:   zapcore.ShortCallerEncoder,
 	}
 
+	// 创建AtomicLevel
+	atomicLevel = zap.NewAtomicLevelAt(zap.InfoLevel)
+
 	// 创建Core
 	core := zapcore.NewCore(
 		zapcore.NewJSONEncoder(encoderConfig),
 		zapcore.AddSync(os.Stdout),
-		zap.NewAtomicLevelAt(zap.InfoLevel),
+		atomicLevel,
 	)
 
 	// 创建Logger
@@ -98,5 +102,5 @@ func SetLevel(level string) {
 	default:
 		zapLevel = zap.InfoLevel
 	}
-	logger.Core().Enabled(zapLevel)
+	atomicLevel.SetLevel(zapLevel)
 }

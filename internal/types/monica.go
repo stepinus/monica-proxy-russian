@@ -212,7 +212,7 @@ type OpenAIModelList struct {
 }
 
 var modelToBotMap = map[string]string{
-	"gpt-5":        "gpt-5",
+	"gpt-5":        "gpt_5",
 	"gpt-4o":       "gpt_4_o_chat",
 	"gpt-4o-mini":  "gpt_4_o_mini_chat",
 	"gpt-4.1":      "gpt_4_1",
