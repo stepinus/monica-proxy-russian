@@ -22,15 +22,11 @@ func RequestLogger(cfg *config.Config) echo.MiddlewareFunc {
 			req := c.Request()
 			res := c.Response()
 
-			// 生成请求ID
+			// 从 Echo 的 RequestID 中间件读取请求ID（不再自行生成）
 			requestID := req.Header.Get(echo.HeaderXRequestID)
 			if requestID == "" {
-				requestID = generateRequestID()
-				c.Request().Header.Set(echo.HeaderXRequestID, requestID)
+				requestID = res.Header().Get(echo.HeaderXRequestID)
 			}
-
-			// 设置请求ID到响应头
-			c.Response().Header().Set(echo.HeaderXRequestID, requestID)
 
 			// 处理请求
 			err := next(c)
@@ -73,20 +69,4 @@ func RequestLogger(cfg *config.Config) echo.MiddlewareFunc {
 			return err
 		}
 	}
-}
-
-// generateRequestID 生成请求ID
-func generateRequestID() string {
-	// 使用UUID生成唯一请求ID
-	return "req_" + time.Now().Format("20060102150405") + "_" + randomString(8)
-}
-
-// randomString 生成指定长度的随机字符串
-func randomString(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[time.Now().UnixNano()%int64(len(charset))]
-	}
-	return string(b)
 }

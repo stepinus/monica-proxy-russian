@@ -29,3 +29,20 @@ func SendMonicaRequest(ctx context.Context, cfg *config.Config, mReq *types.Moni
 	// 如果需要在这里做更多判断，可自行补充
 	return resp, nil
 }
+
+// SendCustomBotRequest 发送custom bot请求
+func SendCustomBotRequest(ctx context.Context, cfg *config.Config, customBotReq *types.CustomBotRequest) (*resty.Response, error) {
+	// 发起请求
+	resp, err := utils.RestySSEClient.R().
+		SetContext(ctx).
+		SetHeader("cookie", cfg.Monica.Cookie).
+		SetBody(customBotReq).
+		Post(types.CustomBotChatURL)
+
+	if err != nil {
+		logger.Error("Custom Bot API请求失败", zap.Error(err))
+		return nil, errors.NewRequestFailedError("Custom Bot API调用失败", err)
+	}
+
+	return resp, nil
+}

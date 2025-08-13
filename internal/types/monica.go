@@ -31,8 +31,8 @@ const (
 	MaxImageSize         = 10 * 1024 * 1024 // 10MB
 	ImageModule          = "chat_bot"
 	ImageLocation        = "files"
-	ImageUploadTimeout   = 30 * time.Second  // 图片上传超时时间
-	MaxConcurrentUploads = 5                 // 最大并发上传数
+	ImageUploadTimeout   = 30 * time.Second // 图片上传超时时间
+	MaxConcurrentUploads = 5                // 最大并发上传数
 )
 
 // 支持的图片格式
@@ -258,6 +258,63 @@ func modelToBot(model string) string {
 	return model
 }
 
+// CustomBotRequest 定义custom bot的请求结构
+type CustomBotRequest struct {
+	TaskUID        string        `json:"task_uid"`
+	BotUID         string        `json:"bot_uid"`
+	Data           CustomBotData `json:"data"`
+	Language       string        `json:"language"`
+	Locale         string        `json:"locale"`
+	TaskType       string        `json:"task_type"`
+	BotData        BotData       `json:"bot_data"`
+	AIRespLanguage string        `json:"ai_resp_language,omitempty"`
+}
+
+// CustomBotData custom bot的数据字段
+type CustomBotData struct {
+	ConversationID      string `json:"conversation_id"`
+	Items               []Item `json:"items"`
+	PreGeneratedReplyID string `json:"pre_generated_reply_id"`
+	PreParentItemID     string `json:"pre_parent_item_id"`
+	Origin              string `json:"origin"`
+	OriginPageTitle     string `json:"origin_page_title"`
+	TriggerBy           string `json:"trigger_by"`
+	UseModel            string `json:"use_model"`
+	IsIncognito         bool   `json:"is_incognito"`
+	UseNewMemory        bool   `json:"use_new_memory"`
+	UseMemorySuggestion bool   `json:"use_memory_suggestion"`
+}
+
+// BotData bot配置数据
+type BotData struct {
+	Description    string        `json:"description"`
+	LogoURL        string        `json:"logo_url"`
+	Name           string        `json:"name"`
+	Classification string        `json:"classification"`
+	Prompt         string        `json:"prompt"`
+	Type           string        `json:"type"`
+	UID            string        `json:"uid"`
+	ExampleList    []interface{} `json:"example_list"`
+	ToolData       BotToolData   `json:"tool_data"`
+}
+
+// BotToolData bot工具数据
+type BotToolData struct {
+	KnowledgeList    []interface{} `json:"knowledge_list"`
+	UserSkillList    []interface{} `json:"user_skill_list"`
+	SysSkillList     []interface{} `json:"sys_skill_list"`
+	UseModel         string        `json:"use_model"`
+	ScheduleTaskList []interface{} `json:"schedule_task_list"`
+}
+
+// Custom Bot相关的URL
+const (
+	CustomBotSaveURL    = "https://api.monica.im/api/custom_bot/save_bot"
+	CustomBotPublishURL = "https://api.monica.im/api/custom_bot/publish_bot"
+	CustomBotPinURL     = "https://api.monica.im/api/custom_bot/pin_bot"
+	CustomBotChatURL    = "https://api.monica.im/api/custom_bot/preview_chat"
+)
+
 // GetSupportedModels 获取支持的模型列表
 func GetSupportedModels() []string {
 	models := []string{
@@ -349,33 +406,33 @@ func ChatGPTToMonica(cfg *config.Config, chatReq openai.ChatCompletionRequest) (
 			// 为图片上传创建带超时的上下文
 			uploadCtx, cancel := context.WithTimeout(context.Background(), ImageUploadTimeout)
 			defer cancel()
-			
+
 			// 统计上传成功和失败数量
 			var successCount, failureCount int64
-			
+
 			// 并发上传图片并收集结果
 			uploadResults := lop.Map(imgUrl, func(item *openai.ChatMessageImageURL, _ int) *FileInfo {
 				f, err := UploadBase64Image(uploadCtx, cfg, item.URL)
 				if err != nil {
 					atomic.AddInt64(&failureCount, 1)
-					logger.Error("上传图片失败", 
-						zap.Error(err), 
+					logger.Error("上传图片失败",
+						zap.Error(err),
 						zap.String("image_url", item.URL),
 						zap.Int("total_images", len(imgUrl)),
 					)
 					return nil // 返回 nil 表示失败
 				}
-				
+
 				if f == nil {
 					atomic.AddInt64(&failureCount, 1)
 					logger.Warn("图片上传返回空结果", zap.String("image_url", item.URL))
 					return nil
 				}
-				
+
 				atomic.AddInt64(&successCount, 1)
 				return f
 			})
-			
+
 			// 过滤掉失败的上传，只保留成功的
 			fileIfoList := make([]FileInfo, 0, len(uploadResults))
 			for _, result := range uploadResults {
@@ -383,7 +440,7 @@ func ChatGPTToMonica(cfg *config.Config, chatReq openai.ChatCompletionRequest) (
 					fileIfoList = append(fileIfoList, *result)
 				}
 			}
-			
+
 			// 记录上传统计信息
 			if failureCount > 0 {
 				logger.Warn("图片上传完成",
@@ -447,4 +504,152 @@ func ChatGPTToMonica(cfg *config.Config, chatReq openai.ChatCompletionRequest) (
 	// log.Printf("send: \n%s\n", indent)
 
 	return mReq, nil
+}
+
+// ChatGPTToCustomBot 转换ChatGPT请求到Custom Bot请求
+func ChatGPTToCustomBot(cfg *config.Config, chatReq openai.ChatCompletionRequest, botUID string) (*CustomBotRequest, error) {
+	if len(chatReq.Messages) == 0 {
+		return nil, fmt.Errorf("empty messages")
+	}
+
+	// 生成会话ID
+	conversationID := fmt.Sprintf("conv:%s", uuid.New().String())
+
+	// 设置默认欢迎消息
+	defaultItem := Item{
+		ItemID:         fmt.Sprintf("msg:%s", uuid.New().String()),
+		ConversationID: conversationID,
+		ItemType:       "reply",
+		Data:           ItemContent{Type: "text", Content: "__RENDER_BOT_WELCOME_MSG__"},
+	}
+	var items = make([]Item, 1, len(chatReq.Messages))
+	items[0] = defaultItem
+	preItemID := defaultItem.ItemID
+
+	// 提取system消息作为prompt
+	var systemPrompt string
+	// 转换消息
+	for _, msg := range chatReq.Messages {
+		if msg.Role == "system" {
+			// 将system消息作为prompt
+			systemPrompt = msg.Content
+			continue
+		}
+
+		var msgContext string
+		var imgUrl []*openai.ChatMessageImageURL
+		if len(msg.MultiContent) > 0 {
+			for _, content := range msg.MultiContent {
+				switch content.Type {
+				case "text":
+					msgContext = content.Text
+				case "image_url":
+					imgUrl = append(imgUrl, content.ImageURL)
+				}
+			}
+		}
+
+		itemID := fmt.Sprintf("msg:%s", uuid.New().String())
+		itemType := "question"
+		if msg.Role == "assistant" {
+			itemType = "reply"
+		}
+
+		var content ItemContent
+		if len(imgUrl) > 0 {
+			// 处理图片上传
+			uploadCtx, cancel := context.WithTimeout(context.Background(), ImageUploadTimeout)
+			defer cancel()
+
+			var successCount, failureCount int64
+			uploadResults := lop.Map(imgUrl, func(item *openai.ChatMessageImageURL, _ int) *FileInfo {
+				f, err := UploadBase64Image(uploadCtx, cfg, item.URL)
+				if err != nil {
+					atomic.AddInt64(&failureCount, 1)
+					logger.Error("上传图片失败",
+						zap.Error(err),
+						zap.String("image_url", item.URL),
+					)
+					return nil
+				}
+				atomic.AddInt64(&successCount, 1)
+				return f
+			})
+
+			fileIfoList := make([]FileInfo, 0, len(uploadResults))
+			for _, result := range uploadResults {
+				if result != nil {
+					fileIfoList = append(fileIfoList, *result)
+				}
+			}
+
+			content = ItemContent{
+				Type:        "file_with_text",
+				Content:     msgContext,
+				FileInfos:   fileIfoList,
+				IsIncognito: false,
+			}
+		} else {
+			content = ItemContent{
+				Type:        "text",
+				Content:     msg.Content,
+				IsIncognito: false,
+			}
+		}
+
+		item := Item{
+			ConversationID: conversationID,
+			ItemID:         itemID,
+			ParentItemID:   preItemID,
+			ItemType:       itemType,
+			Data:           content,
+		}
+		items = append(items, item)
+		preItemID = itemID
+	}
+
+	// 生成reply ID
+	preGeneratedReplyID := fmt.Sprintf("msg:%s", uuid.New().String())
+
+	// 构建请求
+	customBotReq := &CustomBotRequest{
+		TaskUID: fmt.Sprintf("task:%s", uuid.New().String()),
+		BotUID:  botUID,
+		Data: CustomBotData{
+			ConversationID:      conversationID,
+			Items:               items,
+			PreGeneratedReplyID: preGeneratedReplyID,
+			PreParentItemID:     preItemID,
+			Origin:              fmt.Sprintf("https://monica.im/bots/%s", botUID),
+			OriginPageTitle:     "Monica Bot Test",
+			TriggerBy:           "auto",
+			UseModel:            chatReq.Model, // 使用请求中的模型
+			IsIncognito:         false,
+			UseNewMemory:        true,
+			UseMemorySuggestion: true,
+		},
+		Language: "auto",
+		Locale:   "zh_CN",
+		TaskType: "chat",
+		BotData: BotData{
+			Description:    "Test Bot",
+			LogoURL:        "https://assets.monica.im/assets/img/default_bot_icon.jpg",
+			Name:           "Test Bot",
+			Classification: "custom",
+			Prompt:         systemPrompt,
+			Type:           "custom_bot",
+			UID:            botUID,
+			ExampleList:    []interface{}{},
+			ToolData: BotToolData{
+				KnowledgeList:    []interface{}{},
+				UserSkillList:    []interface{}{},
+				SysSkillList:     []interface{}{},
+				UseModel:         chatReq.Model,
+				ScheduleTaskList: []interface{}{},
+			},
+		},
+		AIRespLanguage: "Chinese (Simplified)",
+	}
+
+	return customBotReq, nil
 }

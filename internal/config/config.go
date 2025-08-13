@@ -43,7 +43,9 @@ type ServerConfig struct {
 
 // MonicaConfig Monica API 配置
 type MonicaConfig struct {
-	Cookie string `yaml:"cookie" json:"cookie"`
+	Cookie              string `yaml:"cookie" json:"cookie"`
+	BotUID              string `yaml:"bot_uid" json:"bot_uid"`
+	EnableCustomBotMode bool   `yaml:"enable_custom_bot_mode" json:"enable_custom_bot_mode"`
 }
 
 // SecurityConfig 安全配置
@@ -75,9 +77,6 @@ type LoggingConfig struct {
 	MaskSensitive    bool   `yaml:"mask_sensitive" json:"mask_sensitive"`
 }
 
-// AppConfig 全局配置实例
-var AppConfig *Config
-
 // Load 加载配置，优先级：配置文件 > 环境变量 > 默认值
 func Load() (*Config, error) {
 	// 1. 设置默认配置
@@ -100,9 +99,6 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("配置验证失败: %w", err)
 	}
 
-	// 6. 设置全局配置
-	AppConfig = config
-
 	return config, nil
 }
 
@@ -117,7 +113,9 @@ func getDefaultConfig() *Config {
 			IdleTimeout:  60 * time.Second,
 		},
 		Monica: MonicaConfig{
-			Cookie: "",
+			Cookie:              "",
+			BotUID:              "",
+			EnableCustomBotMode: false,
 		},
 		Security: SecurityConfig{
 			TLSSkipVerify:    true,
@@ -220,6 +218,14 @@ func overrideWithEnv(config *Config) {
 	if cookie := os.Getenv("MONICA_COOKIE"); cookie != "" {
 		config.Monica.Cookie = cookie
 	}
+	if botUID := os.Getenv("BOT_UID"); botUID != "" {
+		config.Monica.BotUID = botUID
+	}
+	if enableCustomBot := os.Getenv("ENABLE_CUSTOM_BOT_MODE"); enableCustomBot != "" {
+		if enabled, err := strconv.ParseBool(enableCustomBot); err == nil {
+			config.Monica.EnableCustomBotMode = enabled
+		}
+	}
 
 	// 安全配置
 	if token := os.Getenv("BEARER_TOKEN"); token != "" {
@@ -260,6 +266,11 @@ func (c *Config) Validate() error {
 	}
 	if c.Security.BearerToken == "" {
 		errors = append(errors, "BEARER_TOKEN is required")
+	}
+
+	// 如果启用了 Custom Bot 模式，必须设置 BOT_UID
+	if c.Monica.EnableCustomBotMode && c.Monica.BotUID == "" {
+		errors = append(errors, "BOT_UID is required when ENABLE_CUSTOM_BOT_MODE is true")
 	}
 
 	// 验证端口范围
@@ -313,22 +324,4 @@ func contains(slice []string, item string) bool {
 		}
 	}
 	return false
-}
-
-// LoadConfig 兼容性函数，保持向后兼容
-// Deprecated: 请使用 Load() 函数
-func LoadConfig() *Config {
-	config, err := Load()
-	if err != nil {
-		panic(fmt.Sprintf("Failed to load config: %v", err))
-	}
-	return config
-}
-
-// GetConfig 获取当前配置
-func GetConfig() *Config {
-	if AppConfig == nil {
-		panic("Config not loaded. Call Load() first.")
-	}
-	return AppConfig
 }
