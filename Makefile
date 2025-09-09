@@ -3,7 +3,7 @@
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
-BIN_NAME = monica
+BIN_NAME = monica-proxy
 BUILD_DIR = build
 
 build:

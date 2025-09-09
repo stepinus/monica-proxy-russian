@@ -10,6 +10,9 @@ services:
     environment:
       - MONICA_COOKIE=${MONICA_COOKIE}
       - BEARER_TOKEN=${BEARER_TOKEN}
+      # Языковые настройки (русский по умолчанию)
+      - MONICA_DEFAULT_LOCALE=ru_RU
+      - MONICA_DEFAULT_AI_RESP_LANGUAGE=Russian
       # 限流配置（可选）
       - RATE_LIMIT_RPS=${RATE_LIMIT_RPS:-0}  # 默认0=禁用限流
       # 其他可选配置

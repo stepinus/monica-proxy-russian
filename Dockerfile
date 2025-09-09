@@ -16,7 +16,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM gcr.io/distroless/static:nonroot AS final
 WORKDIR /data
-COPY --from=builder /app/build/monica /data/monica
+COPY --from=builder /app/build/monica-proxy /data/monica
 
 EXPOSE 8080
 USER nonroot:nonroot
