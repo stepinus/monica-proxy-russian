@@ -50,6 +50,16 @@ func (s *customBotService) HandleCustomBotChat(ctx context.Context, req *openai.
 		return nil, errors.NewInternalError(err)
 	}
 
+	// Логируем отправляемый запрос к Monica Custom Bot API
+	logger.Info("Отправка запроса к Monica Custom Bot API",
+		zap.String("model", req.Model),
+		zap.String("bot_uid", botUID),
+		zap.String("language", customBotReq.Language),
+		zap.String("locale", customBotReq.Locale),
+		zap.String("ai_resp_language", customBotReq.AIRespLanguage),
+		zap.Int("message_count", len(req.Messages)),
+	)
+
 	// 调用Monica Custom Bot API
 	stream, err := monica.SendCustomBotRequest(ctx, s.config, customBotReq)
 	if err != nil {

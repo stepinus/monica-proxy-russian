@@ -4,11 +4,13 @@ import (
 	"crypto/tls"
 	"fmt"
 	"monica-proxy/internal/config"
+	"monica-proxy/internal/logger"
 	"net"
 	"net/http"
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"go.uber.org/zap"
 )
 
 var (
@@ -55,6 +57,21 @@ func createSSEClient(cfg *config.Config) *resty.Client {
 			"User-Agent":      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
 			"x-client-locale": "ru_RU",
 			"Accept":          "text/event-stream,application/json",
+		}).
+		OnBeforeRequest(func(c *resty.Client, r *resty.Request) error {
+			// Логируем HTTP заголовки перед отправкой
+			headers := make(map[string]string)
+			for k, v := range r.Header {
+				if len(v) > 0 {
+					headers[k] = v[0] // Берем первое значение
+				}
+			}
+			logger.Info("HTTP заголовки запроса к Monica",
+				zap.Any("headers", headers),
+				zap.String("url", r.URL),
+				zap.String("method", r.Method),
+			)
+			return nil
 		}).
 		OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
 			if resp.StatusCode() >= 400 {

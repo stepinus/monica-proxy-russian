@@ -51,6 +51,15 @@ func (s *chatService) HandleChatCompletion(ctx context.Context, req *openai.Chat
 		return nil, errors.NewInternalError(err)
 	}
 
+	// Логируем отправляемый запрос к Monica
+	logger.Info("Отправка запроса к Monica API (обычный чат)",
+		zap.String("model", req.Model),
+		zap.String("language", monicaReq.Language),
+		zap.String("task_type", monicaReq.TaskType),
+		zap.String("bot_uid", monicaReq.BotUID),
+		zap.Int("message_count", len(req.Messages)),
+	)
+
 	// 调用Monica API
 	stream, err := monica.SendMonicaRequest(ctx, s.config, monicaReq)
 	if err != nil {
