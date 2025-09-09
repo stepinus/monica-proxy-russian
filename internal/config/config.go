@@ -46,6 +46,8 @@ type MonicaConfig struct {
 	Cookie              string `yaml:"cookie" json:"cookie"`
 	BotUID              string `yaml:"bot_uid" json:"bot_uid"`
 	EnableCustomBotMode bool   `yaml:"enable_custom_bot_mode" json:"enable_custom_bot_mode"`
+	DefaultLocale       string `yaml:"default_locale" json:"default_locale"`
+	DefaultAIRespLang   string `yaml:"default_ai_resp_language" json:"default_ai_resp_language"`
 }
 
 // SecurityConfig 安全配置
@@ -116,6 +118,8 @@ func getDefaultConfig() *Config {
 			Cookie:              "",
 			BotUID:              "",
 			EnableCustomBotMode: false,
+			DefaultLocale:       "ru_RU",
+			DefaultAIRespLang:   "Russian",
 		},
 		Security: SecurityConfig{
 			TLSSkipVerify:    true,
@@ -225,6 +229,12 @@ func overrideWithEnv(config *Config) {
 		if enabled, err := strconv.ParseBool(enableCustomBot); err == nil {
 			config.Monica.EnableCustomBotMode = enabled
 		}
+	}
+	if defaultLocale := os.Getenv("MONICA_DEFAULT_LOCALE"); defaultLocale != "" {
+		config.Monica.DefaultLocale = defaultLocale
+	}
+	if defaultAIRespLang := os.Getenv("MONICA_DEFAULT_AI_RESP_LANGUAGE"); defaultAIRespLang != "" {
+		config.Monica.DefaultAIRespLang = defaultAIRespLang
 	}
 
 	// 安全配置

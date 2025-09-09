@@ -629,7 +629,7 @@ func ChatGPTToCustomBot(cfg *config.Config, chatReq openai.ChatCompletionRequest
 			UseMemorySuggestion: true,
 		},
 		Language: "auto",
-		Locale:   "zh_CN",
+		Locale:   "ru_RU",
 		TaskType: "chat",
 		BotData: BotData{
 			Description:    "Test Bot",
@@ -648,7 +648,7 @@ func ChatGPTToCustomBot(cfg *config.Config, chatReq openai.ChatCompletionRequest
 				ScheduleTaskList: []interface{}{},
 			},
 		},
-		AIRespLanguage: "Chinese (Simplified)",
+		AIRespLanguage: "Russian",
 	}
 
 	return customBotReq, nil
